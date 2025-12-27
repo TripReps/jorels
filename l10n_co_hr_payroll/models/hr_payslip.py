@@ -40,27 +40,26 @@ class HrPayslip(models.Model):
         'l10n_co_hr_payroll.edi'
     ]
 
-    origin_payslip_id = fields.Many2one(comodel_name="hr.payslip", string="Origin payslip", readonly=True,
-                                        states={'draft': [('readonly', False)]}, copy=False)
+    origin_payslip_id = fields.Many2one(comodel_name="hr.payslip", string="Origin payslip", readonly=True, copy=False)
 
     # Edi fields
-    date = fields.Date('Date Account', states={'draft': [('readonly', False)]}, readonly=True,
+    date = fields.Date('Date Account', readonly=True,
                        help="Keep empty to use the period of the validation(Payslip) date.")
-    payment_date = fields.Date("Payment date", required=True, readonly=True, states={'draft': [('readonly', False)]},
+    payment_date = fields.Date("Payment date", required=True, readonly=True,
                                default=lambda self: fields.Date.to_string(
                                    (datetime.now() + relativedelta(months=+1, day=1, days=-1)).date()))
     others_total_amount = fields.Monetary("Others", currency_field='currency_id', readonly=True, copy=True)
     earn_ids = fields.One2many('l10n_co_hr_payroll.earn.line', 'payslip_id', string='Earn lines', readonly=True,
-                               copy=True, states={'draft': [('readonly', False)]})
+                               copy=True)
     deduction_ids = fields.One2many('l10n_co_hr_payroll.deduction.line', 'payslip_id', string='Deduction lines',
-                                    copy=True, readonly=True, states={'draft': [('readonly', False)]})
+                                    copy=True, readonly=True)
     payslip_edi_ids = fields.Many2many(comodel_name='hr.payslip.edi', string='Edi Payslips',
                                        relation='hr_payslip_hr_payslip_edi_rel',
                                        readonly=True, copy=False)
     is_settlement = fields.Boolean(string='Is Settlement',
                                    default=False,
                                    help="Check this box if this payslip is a settlement",
-                                   readonly=True, states={'draft': [('readonly', False)]})
+                                   readonly=True, copy=False)
 
     month = fields.Selection([
         ('1', 'January'),
@@ -94,8 +93,7 @@ class HrPayslip(models.Model):
                               date.day) + timedelta(hours=hours)
         return fields.Datetime.to_string(date_hours)
 
-    def compute_sheet(self):
-
+    def action_compute_sheet(self):
         for rec in self:
             # Read all codes
             all_earn_code_list = []
@@ -237,7 +235,7 @@ class HrPayslip(models.Model):
             if not rec.number:
                 rec.number = _('New')
 
-        res = super(HrPayslip, self).compute_sheet()
+        res = super(HrPayslip, self).action_compute_sheet()
         self.compute_totals()
 
         # The sheet and the totals are calculated again,
@@ -245,7 +243,7 @@ class HrPayslip(models.Model):
         # Especially the field worked_days_total
         try:
             if int(self.env['ir.config_parameter'].sudo().get_param('jorels.payroll.recompute_sheet', 1)):
-                res = super(HrPayslip, self).compute_sheet()
+                res = super(HrPayslip, self).action_compute_sheet()
                 self.compute_totals()
         except ValueError as e:
             raise UserError("The system parameter 'jorels.payroll.recompute_sheet' is misconfigured. Use only 0 or 1")
@@ -311,19 +309,19 @@ class HrPayslip(models.Model):
                 raise UserError(_("The contract must have the 'Type worker' field configured"))
             if not rec.contract_id.subtype_worker_id:
                 raise UserError(_("The contract must have the 'Subtype worker' field configured"))
-            if not rec.employee_id.address_home_id.first_name:
+            if not rec.employee_id.private_first_name:
                 raise UserError(_("Employee does not have a first name"))
-            if not rec.employee_id.address_home_id.surname:
+            if not rec.employee_id.private_surname:
                 raise UserError(_("Employee does not have a surname"))
-            if not rec.employee_id.address_home_id.type_document_identification_id:
+            if not rec.employee_id.private_type_document_identification_id:
                 raise UserError(_("Employee does not have an identification type"))
-            if rec.employee_id.address_home_id.type_document_identification_id.id == 6:
+            if rec.employee_id.private_type_document_identification_id.id == 6:
                 raise UserError(_("The employee's document type cannot be NIT"))
-            if not rec.employee_id.address_home_id.vat:
+            if not rec.employee_id.private_vat:
                 raise UserError(_("Employee does not have an document number"))
-            if not rec.employee_id.address_home_id.postal_municipality_id:
+            if not rec.employee_id.private_postal_municipality_id:
                 raise UserError(_("Employee does not have a postal municipality"))
-            if not rec.employee_id.address_home_id.street:
+            if not rec.employee_id.private_street:
                 raise UserError(_("Employee does not have an address."))
             if not rec.contract_id.name:
                 raise UserError(_("Contract does not have a name"))
@@ -389,22 +387,22 @@ class HrPayslip(models.Model):
                 "type_worker_code": rec.contract_id.type_worker_id.id,
                 "subtype_worker_code": rec.contract_id.subtype_worker_id.id,
                 "high_risk_pension": rec.contract_id.high_risk_pension,
-                "id_code": rec.employee_id.address_home_id.type_document_identification_id.id,
-                "id_number": ''.join([i for i in rec.employee_id.address_home_id.vat if i.isdigit()]),
-                "surname": rec.employee_id.address_home_id.surname,
-                "first_name": rec.employee_id.address_home_id.first_name,
+                "id_code": rec.employee_id.private_type_document_identification_id.id,
+                "id_number": ''.join([i for i in rec.employee_id.private_vat if i.isdigit()]),
+                "surname": rec.employee_id.private_surname,
+                "first_name": rec.employee_id.private_first_name,
                 "country_code": 46,
-                "municipality_code": rec.employee_id.address_home_id.postal_municipality_id.id,
-                "address": rec.employee_id.address_home_id.street,
+                "municipality_code": rec.employee_id.private_postal_municipality_id.id,
+                "address": rec.employee_id.private_street,
                 "integral_salary": rec.contract_id.integral_salary,
                 "contract_code": rec.contract_id.type_contract_id.id,
                 "salary": abs(rec.contract_id.wage),
                 # "worker_code": "string"
             }
-            if rec.employee_id.address_home_id.other_names:
-                employee['other_names'] = rec.employee_id.address_home_id.other_names
-            if rec.employee_id.address_home_id.second_surname:
-                employee['second_surname'] = rec.employee_id.address_home_id.second_surname
+            if rec.employee_id.private_other_names:
+                employee['other_names'] = rec.employee_id.private_other_names
+            if rec.employee_id.private_second_surname:
+                employee['second_surname'] = rec.employee_id.private_second_surname
 
             if rec.contract_id.date_end:
                 amount_time = self.calculate_time_worked(rec.contract_id.date_start, rec.contract_id.date_end)
@@ -1347,10 +1345,10 @@ class HrPayslip(models.Model):
             payload = json.dumps(rec.get_json_request(), indent=2, sort_keys=False)
             rec._status_zip(payload)
 
-    def refund_sheet(self):
+    def action_refund_sheet(self):
         # The following line is commented, because if applied, the sequence is incorrectly calculated
         # and the relationship to the original payroll would not be taken by default
-        # res = super(HrPayslip, self).refund_sheet()
+        # res = super(HrPayslip, self).action_refund_sheet()
         copied_payslip = None
         for payslip in self:
             if payslip.credit_note:
@@ -1363,15 +1361,15 @@ class HrPayslip(models.Model):
                                            })
             # It is important to call compute_sheet here,
             # so that the accounting of the adjustment notes works well.
-            copied_payslip.compute_sheet()
+            copied_payslip.action_compute_sheet()
             copied_payslip.action_payslip_done()
 
             if payslip.edi_payload and not copied_payslip.edi_payload:
                 payload = copied_payslip.get_json_request()
                 copied_payslip.write({'edi_payload': json.dumps(payload, indent=2, sort_keys=False)})
 
-        formview_ref = self.env.ref('hr_payroll_community.view_hr_payslip_form', False)
-        treeview_ref = self.env.ref('hr_payroll_community.view_hr_payslip_tree', False)
+        formview_ref = self.env.ref('hr_payroll_community.hr_payslip_view_form', False)
+        treeview_ref = self.env.ref('hr_payroll_community.hr_payslip_view_tree', False)
 
         if copied_payslip is not None:
             domain = "[('id', 'in', %s)]" % copied_payslip.ids
@@ -1379,7 +1377,7 @@ class HrPayslip(models.Model):
             domain = "[(credit_note, '=', True)]"
 
         return {
-            'name': ("Refund Payslip"),
+            'name': _("Refund Payslip"),
             'view_mode': 'tree, form',
             'view_id': False,
             'res_model': 'hr.payslip',

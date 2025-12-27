@@ -22,17 +22,17 @@
 <odoo>
     <data>
         <template id="report_invoice_document_custom" inherit_id="account.report_invoice_document">
-            <xpath expr="//t[@t-set='address']" position="attributes">
+            <xpath expr="//div[hasclass('row')]" position="attributes">
                 <attribute name="t-if" add="not o.company_id.ei_enable" separator=" and "/>
             </xpath>
-            <xpath expr="//t[@t-set='address']" position="after">
+            <xpath expr="//div[hasclass('row')]" position="after">
                 <div t-if="o.company_id.ei_enable" class="row mt32 mb32" name="ei_header">
                     <div t-if="o.ei_is_valid and o.ei_qr_data" class="col-2 mb-2" name="ei_qr">
                         <!-- With OCA -->
                         <!-- <img t-att-src="'/report/qr/?value=%s&amp;error_correction=%s' % (o.ei_qr_data, 1)" style="width:100;height:100"/>-->
 
                         <!-- With Odoo-->
-                        <img t-att-src="'/report/barcode/?type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.ei_qr_data, 128, 128)"/>
+                        <img t-att-src="'/report/barcode/?barcode_type=%s&amp;value=%s&amp;width=%s&amp;height=%s' % ('QR', o.ei_qr_data, 128, 128)"/>
 
                         <!-- With image -->
                         <!-- <span t-field="o.ei_qr_image" t-options="{'widget':'image'}"/>-->
@@ -93,6 +93,15 @@
                             <span t-if="o.partner_id.l10n_latam_identification_type_id.l10n_co_document_code == 'diplomatic_card'">
                                 Tax ID:
                             </span>
+                            <span t-if="o.partner_id.l10n_latam_identification_type_id.l10n_co_document_code == 'foreign_colombian_card'">
+                                T.E.:
+                            </span>
+                            <span t-if="o.partner_id.l10n_latam_identification_type_id.l10n_co_document_code == 'foreign_resident_card'">
+                                C.E.:
+                            </span>
+                            <span t-if="o.partner_id.l10n_latam_identification_type_id.l10n_co_document_code == 'niup_id'">
+                                NIUP:
+                            </span>
                             <span t-field="o.partner_id.vat"/>
                         </div>
                         <address t-field="o.partner_id"
@@ -102,6 +111,8 @@
             </xpath>
             <xpath expr="//div[hasclass('page')]/h2[1]" position="replace">
                 <h2>
+                    <span t-if="not proforma"></span>
+                    <span t-else="">PROFORMA</span>
                     <span t-if="o.company_id.ei_enable and o.ei_is_valid and o.move_type == 'out_invoice' and o.state == 'posted'">
                         Electronic Sale Invoice
                     </span>
@@ -111,10 +122,16 @@
                     <span t-elif="not o.company_id.ei_enable and o.move_type == 'out_invoice' and o.state == 'posted'">
                         Invoice
                     </span>
-                    <span t-if="o.move_type == 'out_invoice' and o.state == 'draft'">Draft Invoice</span>
-                    <span t-if="o.move_type == 'out_invoice' and o.state == 'cancel'">Cancelled Invoice</span>
-                    <span t-if="o.company_id.ei_enable and o.move_type == 'out_refund'">Electronic Credit Note</span>
-                    <span t-elif="not o.company_id.ei_enable and o.move_type == 'out_refund'">Credit Note</span>
+                    <span t-elif="o.move_type == 'out_invoice' and o.state == 'draft'">Draft Invoice</span>
+                    <span t-elif="o.move_type == 'out_invoice' and o.state == 'cancel'">Cancelled Invoice</span>
+                    <span t-elif="o.company_id.ei_enable and o.ei_is_valid and o.move_type == 'out_refund' and o.state == 'posted'">
+                        Electronic Credit Note
+                    </span>
+                    <span t-elif="o.move_type == 'out_refund' and o.state == 'posted'">
+                        Credit Note
+                    </span>
+                    <span t-elif="o.move_type == 'out_refund' and o.state == 'draft'">Draft Credit Note</span>
+                    <span t-elif="o.move_type == 'out_refund' and o.state == 'cancel'">Cancelled Credit Note</span>
                     <strong t-if="o.company_id.ei_enable and o.move_type == 'in_refund' and o.resolution_id and o.resolution_id.resolution_type_document_id.id == 13">
                         Credit note of electronic support document in acquisitions made to those not obliged to invoice
                     </strong>
@@ -194,29 +211,26 @@
                     }}
                 </attribute>
             </xpath>
-            <xpath expr="//table[@name='invoice_line_table']//thead//th[contains(@name, 'th_subtotal')]"
+            <xpath expr="//table[@name='invoice_line_table']/thead//th[contains(@name, 'th_subtotal')]"
                    position="inside">
                 <t t-if="o.company_id.ei_enable and o.is_multicurrency">
                     <span>(<span t-field="o.currency_id"/>)
                     </span>
                 </t>
             </xpath>
-            <xpath expr="//table[@name='invoice_line_table']//thead//th[contains(@name, 'th_subtotal')]"
+            <xpath expr="//table[@name='invoice_line_table']/thead//th[contains(@name, 'th_subtotal')]"
                    position="after">
-                <th name="th_subtotal_company" class="text-right" t-if="o.company_id.ei_enable and o.is_multicurrency">
-                    <span groups="account.group_show_line_subtotals_tax_excluded">Amount</span>
-                    <!-- <span groups="account.group_show_line_subtotals_tax_included">Total Price</span> -->
-                    <span groups="account.group_show_line_subtotals_tax_excluded">
-                        (<span t-field="o.company_currency_id"/>)
+                <th name="th_subtotal_company" class="text-end" t-if="o.company_id.ei_enable and o.is_multicurrency">
+                    <span>Amount(<span t-field="o.company_currency_id"/>)
                     </span>
                 </th>
             </xpath>
-            <xpath expr="//tbody[@class='invoice_tbody']//td[@class='text-right o_price_total']" position="after">
-                <td class="text-right o_price_total" t-if="o.company_id.ei_enable and o.is_multicurrency">
-                    <span groups="account.group_show_line_subtotals_tax_excluded"
-                          t-esc="abs(line.balance)"
-                          t-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                    <!-- <span t-field="line.price_total_company" groups="account.group_show_line_subtotals_tax_included"/> -->
+            <xpath expr="//tbody[hasclass('invoice_tbody')]//td[hasclass('o_price_total')]" position="after">
+                <td name="td_subtotal_company" class="text-end o_price_total"
+                    t-if="o.company_id.ei_enable and o.is_multicurrency">
+                    <span class="text-nowrap" t-esc="abs(line.balance)"
+                          t-options='{"widget": "monetary", "display_currency": o.company_currency_id}'>
+                    </span>
                 </td>
             </xpath>
             <xpath expr="//t[@name='account_invoice_line_accountable']/td[1]" position="before">
@@ -225,8 +239,9 @@
                     <span t-esc="num_item"/>
                 </td>
             </xpath>
-            <xpath expr="//div[@id='total']/div[1]" position="before">
-                <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-12 col-md-12'}">
+            <xpath expr="//div[@id='right-elements']" position="before">
+                <div id="left-elements"
+                     t-attf-class="#{'col-7' if report_type != 'html' else 'col-12 col-md-5'} float-start">
                     <div t-if="o.company_id.ei_enable and o.payment_method_id.id" name="payment_method">
                         <strong>Payment method:</strong>
                         <span t-field="o.payment_method_id"/>
@@ -243,8 +258,8 @@
                     <br/>
                 </div>
             </xpath>
-            <xpath expr="//div[@id='total']/div[2]" position="attributes">
-                <attribute name="t-attf-class">#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'}
+            <xpath expr="//div[@id='right-elements']" position="attributes">
+                <attribute name="t-attf-class">#{'col-5' if report_type != 'html' else 'col-12 col-md-5'} float-end
                 </attribute>
             </xpath>
             <xpath expr="//t[@t-set='tax_totals']" position="before">
@@ -253,54 +268,24 @@
                         <td>
                             <strong>Currency</strong>
                         </td>
-                        <td class="text-right">
+                        <td class="text-end">
                             <span t-field="o.currency_id"/>
                         </td>
                     </tr>
                 </t>
             </xpath>
             <xpath expr="//t[@t-call='account.document_tax_totals']" position="after">
-                <tr class="border-black" style="" t-if="o.company_id.ei_enable">
-                    <td>
-                        <strong>Total without withholdings</strong>
-                    </td>
-                    <td class="text-right">
-                        <span t-field="o.ei_amount_total_no_withholding"
-                              t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
-                    </td>
-                </tr>
-            </xpath>
-            <xpath expr="//div[@id='total']" position="after">
-                <div id="total-company" class="row mt-4" style="page-break-inside: avoid;"
-                     t-if="o.company_id.ei_enable and o.is_multicurrency">
-                    <div t-attf-class="#{'col-6' if report_type != 'html' else 'col-sm-7 col-md-6'} ml-auto">
-                        <div class="position-relative shadow-sm border rounded p-3">
-                            <table class="table table-sm mb-0">
-                                <t>
-                                    <tr class="border-black o_total">
-                                        <td>
-                                            <strong>Currency</strong>
-                                        </td>
-                                        <td class="text-right">
-                                            <span t-field="o.company_currency_id"/>
-                                        </td>
-                                    </tr>
-                                </t>
-                                <t t-set="tax_totals" t-value="json.loads(o.tax_totals_company_json)"/>
-                                <t t-call="account.document_tax_totals"/>
-                                <tr class="border-black" style="" t-if="o.company_id.ei_enable">
-                                    <td>
-                                        <strong>Total without withholdings</strong>
-                                    </td>
-                                    <td class="text-right">
-                                        <span t-field="o.ei_amount_total_no_withholding_company"
-                                              t-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                <t>
+                    <tr class="border-black o_total" t-if="o.company_id.ei_enable">
+                        <td>
+                            <strong>Total without withholdings</strong>
+                        </td>
+                        <td class="text-end">
+                            <span t-field="o.ei_amount_total_no_withholding"
+                                  t-options='{"widget": "monetary", "display_currency": o.currency_id}'/>
+                        </td>
+                    </tr>
+                </t>
             </xpath>
             <xpath expr="//div[hasclass('page')]" position="inside">
                 <div t-if="o.company_id.ei_enable" class="container">
@@ -345,5 +330,22 @@
                 </div>
             </xpath>
         </template>
+
+        <template id="document_tax_totals_company_inherited"
+                  inherit_id="account.document_tax_totals_company_currency_template">
+            <xpath expr="//div[hasclass('totals_taxes_company_currency')]/table//tr[hasclass('o_total')]"
+                   position="after">
+                <tr class="border-black o_total" t-if="o.company_id.ei_enable">
+                    <td>
+                        <strong>Total without withholdings</strong>
+                    </td>
+                    <td class="text-end">
+                        <span t-field="o.ei_amount_total_no_withholding_company"
+                              t-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                    </td>
+                </tr>
+            </xpath>
+        </template>
+
     </data>
 </odoo>

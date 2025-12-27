@@ -30,6 +30,7 @@ _logger = logging.getLogger(__name__)
 class Ciiu(models.Model):
     _name = "l10n_co_ciius.ciiu"
     _description = "CIIU"
+    _rec_name = "code"
 
     name = fields.Char('Name', required=True, readonly=True)
     code = fields.Char('Code', required=True, readonly=True)

@@ -58,6 +58,7 @@ class TestAccountMove(TransactionCase):
         # Adding taxes
         self.tax_iva = self.env['account.tax'].create({
             'name': 'IVA Compra 19% (Test)',
+            'description': 'IVA Compra 19% (Test)',
             'amount_type': 'percent',
             'amount': 19.0,
             'type_tax_use': 'sale',
@@ -67,6 +68,7 @@ class TestAccountMove(TransactionCase):
 
         self.tax_rtefte = self.env['account.tax'].create({
             'name': 'RteFte -2.50% Ventas (Test)',
+            'description': 'RteFte -2.50% Ventas (Test)',
             'amount_type': 'percent',
             'amount': -2.5,
             'type_tax_use': 'sale',
@@ -76,6 +78,7 @@ class TestAccountMove(TransactionCase):
 
         self.tax_excluido = self.env['account.tax'].create({
             'name': 'IVA Excluido (Test)',
+            'description': 'IVA Excluido (Test)',
             'amount_type': 'percent',
             'amount': 0,
             'type_tax_use': 'sale',
@@ -99,9 +102,6 @@ class TestAccountMove(TransactionCase):
             'journal_id': self.journal.id,
         })
 
-        account = self.env['account.account'].search(
-            [('user_type_id', '=', self.env.ref('account.data_account_type_revenue').id)], limit=1)
-
         # Adding invoice lines
         invoice.write({
             'invoice_line_ids': [
@@ -110,7 +110,6 @@ class TestAccountMove(TransactionCase):
                     'product_id': self.product1.id,
                     'quantity': 2.0,
                     'price_unit': 100.0,
-                    'account_id': account.id,
                     'tax_ids': [(6, 0, [self.tax_excluido.id, self.tax_rtefte.id])],
                 }),
                 (0, 0, {
@@ -118,7 +117,6 @@ class TestAccountMove(TransactionCase):
                     'product_id': self.product2.id,
                     'quantity': 1.0,
                     'price_unit': 200.0,
-                    'account_id': account.id,
                     'tax_ids': [(6, 0, [self.tax_iva.id, self.tax_rtefte.id])],
                 })
             ]

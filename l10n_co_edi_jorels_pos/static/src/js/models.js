@@ -1,4 +1,6 @@
-// Jorels S.A.S. - Copyright (2019-2022)
+/** @odoo-module */
+
+// Jorels S.A.S. - Copyright (2019-2024)
 //
 // This file is part of l10n_co_edi_jorels_pos.
 //
@@ -18,125 +20,69 @@
 // email: info@jorels.com
 //
 
-odoo.define('l10n_co_edi_jorels_pos.models', function(require) {
-    "use strict";
+import { Order } from "@point_of_sale/app/store/models";
+import { patch } from "@web/core/utils/patch";
 
-    const { Context } = owl;
-    var PosDB = require('point_of_sale.DB');
-    var core = require('web.core');
-    var exports = require('point_of_sale.models');
-    var OrderSuper = exports.Order;
-    var _t = core._t;
-    var rpc = require('web.rpc');
-
-    var models = exports.PosModel.prototype.models;
-
-    models.push(
-        {
-            model:  'l10n_co_edi_jorels.type_regimes',
-            fields: ['name'],
-            loaded: function(self, type_regimes) {
-                self.type_regimes = type_regimes;
-            }
-        },
-        {
-            model:  'l10n_co_edi_jorels.type_liabilities',
-            fields: ['name'],
-            loaded: function(self, type_liabilities) {
-                self.type_liabilities = type_liabilities;
-            }
-        },
-        {
-            model:  'l10n_co_edi_jorels.municipalities',
-            fields: ['name'],
-            loaded: function(self, municipalities) {
-                self.municipalities = municipalities;
-            }
-        },
-        {
-            model:  'l10n_latam.identification.type',
-            fields: ['name', 'l10n_co_document_code'],
-            loaded: function(self, l10n_latam_identification_types) {
-                self.l10n_latam_identification_types = l10n_latam_identification_types;
-            }
+patch(Order.prototype, {
+    setup() {
+        super.setup(...arguments);
+        const invoiceType = this.pos.config.invoice_type;
+        this.to_electronic_invoice = invoiceType === 'electronic' ? true : false;
+    },
+    init_from_JSON(json) {
+        super.init_from_JSON(json);
+        this.to_electronic_invoice = false;
+        if (this.account_move){
+            this.invoice = this.get_invoice();
+            this.invoice.then(invoice => this.invoice = invoice);
         }
-    );
-
-    exports.load_fields('res.partner', [
-        'company_type',
-        'l10n_latam_identification_type_id',
-        'type_regime_id',
-        'type_liability_id',
-        'municipality_id',
-        'email_edi',
-        'edi_dian_acquirer_email',
-        'edi_dian_acquirer_name',
-    ]);
-    exports.load_fields('res.company', ['municipality_id', 'city', 'ei_enable', 'ei_set_default_partner_data']);
-    exports.load_fields('pos.config', ['invoice_type']);
-
-    exports.Order = exports.Order.extend({
-        initialize: function(attributes, options) {
-            OrderSuper.prototype.initialize.call(this, attributes, options);
-            const invoiceType = this.pos.config.invoice_type;
-            this.to_electronic_invoice = invoiceType === 'electronic' ? true : false;
-        },
-        init_from_JSON: function(json) {
-            OrderSuper.prototype.init_from_JSON.call(this, json);
+    },
+    export_as_JSON() {
+        var json = super.export_as_JSON(...arguments);
+        json.to_electronic_invoice = this.to_electronic_invoice ? this.to_electronic_invoice : false;
+        return json;
+    },
+    export_for_printing() {
+        var receipt = super.export_for_printing(...arguments);
+        if (this.invoice){
+            receipt.invoice = this.invoice;
+        }
+        return receipt;
+    },
+    set_invoice(invoice){
+        this.invoice = invoice;
+    },
+    get_invoice(){
+        self = this;
+        const result = this.env.services.orm.call(
+            "pos.order",
+            "get_invoice",
+            [self.backendId]
+        );
+        return result;
+    },
+    set_to_electronic_invoice(to_electronic_invoice) {
+        this.assert_editable();
+        const invoiceType = this.pos.config.invoice_type;
+        if (!this.is_to_invoice()) {
             this.to_electronic_invoice = false;
-            if (this.account_move){
-                this.invoice = this.get_invoice();
-                this.invoice.then(invoice => this.invoice = invoice);
-            }
-        },
-        export_as_JSON: function() {
-            var json = OrderSuper.prototype.export_as_JSON.call(this);
-            json.to_electronic_invoice = this.to_electronic_invoice ? this.to_electronic_invoice : false;
-            return json;
-        },
-        export_for_printing: function() {
-            var receipt = OrderSuper.prototype.export_for_printing.call(this);
-            if (this.invoice){
-                receipt.invoice = this.invoice;
-            }
-            return receipt;
-        },
-        set_invoice: function(invoice) {
-            this.invoice = invoice;
-        },
-        get_invoice: function() {
-            self = this;
-            return rpc.query({
-                model: 'pos.order',
-                method: 'get_invoice',
-                args: [self.backendId],
-            }).then(function(invoice){
-                return invoice;
-            });
-        },
-        set_to_electronic_invoice: function(to_electronic_invoice) {
-            this.assert_editable();
-            const invoiceType = this.pos.config.invoice_type;
-            if (!this.is_to_invoice()) {
-                this.to_electronic_invoice = false;
-                return;
-            }
-            if (invoiceType === 'normal') {
-                this.to_electronic_invoice = false;
-            }
-            else if (invoiceType === 'electronic') {
-                this.to_electronic_invoice = true;
-            }
-            else {
-                this.to_electronic_invoice = to_electronic_invoice;
-            }
-        },
-        is_to_electronic_invoice: function(){
-            const invoiceType = this.pos.config.invoice_type;
-            if (!this.is_to_invoice()) return false;
-            if (invoiceType === 'normal') return false;
-            if (invoiceType === 'electronic') return true;
-            return this.to_electronic_invoice;
+            return;
         }
-    });
+        if (invoiceType === 'normal') {
+            this.to_electronic_invoice = false;
+        }
+        else if (invoiceType === 'electronic') {
+            this.to_electronic_invoice = true;
+        }
+        else {
+            this.to_electronic_invoice = to_electronic_invoice;
+        }
+    },
+    is_to_electronic_invoice(){
+        const invoiceType = this.pos.config.invoice_type;
+        if (!this.is_to_invoice()) return false;
+        if (invoiceType === 'normal') return false;
+        if (invoiceType === 'electronic') return true;
+        return this.to_electronic_invoice;
+    },
 });

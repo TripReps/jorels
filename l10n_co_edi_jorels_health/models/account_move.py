@@ -34,7 +34,6 @@ class AccountMove(models.Model):
     _description = "Electronic invoicing"
 
     ei_health_provider_ref = fields.Char(string="Service provider code",
-                                         readonly=True, states={'draft': [('readonly', False)]},
                                          help="Código prestador de servicios de salud (Debe registrarse el código "
                                               "asignado en el Sistema General de Seguridad Social en Salud (SGSSS) a "
                                               "los prestadores de servicios de salud que estén en el Registro Especial "
@@ -43,28 +42,24 @@ class AccountMove(models.Model):
                                               "Proveedores de Tecnologías en Salud y demás casos de excepción.)")
     ei_health_payment_method_id = fields.Many2one(string="Health payment method",
                                                   comodel_name='l10n_co_edi_jorels.payment_methods',
-                                                  readonly=True, states={'draft': [('readonly', False)]},
                                                   domain=[('scope', '=', 'health')], ondelete='RESTRICT',
                                                   help="Modalidades de pago (Debe registrarse la modalidad de pago "
                                                        "pactada objeto de facturación)")
     ei_health_type_coverage_id = fields.Many2one(string="Coverage type",
                                                  comodel_name='l10n_co_edi_jorels.type_coverages',
-                                                 readonly=True, states={'draft': [('readonly', False)]},
                                                  domain=[('scope', '=', 'health')], ondelete='RESTRICT',
                                                  help="Cobertura o plan de beneficios (Se registra la entidad "
                                                       "responsable de financiar la cobertura o plan de beneficios, y "
                                                       "de pagar la prestación de los servicios y tecnologías de salud "
                                                       "incluidas en la factura de venta.)")
-    ei_health_contract = fields.Char(string="Contract number", readonly=True, states={'draft': [('readonly', False)]},
+    ei_health_contract = fields.Char(string="Contract number",
                                      help="Número de Contrato (Se debe registrar el número del contrato objeto de "
                                           "facturación)")
-    ei_health_policy = fields.Char(string="Policy number", readonly=True, states={'draft': [('readonly', False)]},
+    ei_health_policy = fields.Char(string="Policy number",
                                    help="Número de póliza (Se debe registrar el número de póliza SOAT o del número de "
                                         "póliza de planes voluntarios de salud)")
 
-    ei_health_partner_id = fields.Many2one(string="Health service user",
-                                           comodel_name='res.partner',
-                                           readonly=True, states={'draft': [('readonly', False)]},
+    ei_health_partner_id = fields.Many2one(string="Health service user", comodel_name='res.partner',
                                            ondelete='RESTRICT')
 
     ei_operation = fields.Selection(selection_add=[

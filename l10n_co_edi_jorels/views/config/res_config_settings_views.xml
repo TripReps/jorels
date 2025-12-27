@@ -27,9 +27,9 @@
             <field name="priority" eval="10"/>
             <field name="inherit_id" ref="base.res_config_settings_view_form"/>
             <field name="arch" type="xml">
-                <xpath expr="//div[hasclass('settings')]" position="inside">
-                    <div class="app_settings_block" data-string="Electronic invoicing"
-                         string="Electronic invoicing" data-key="l10n_co_edi_jorels"
+                <xpath expr="//form" position="inside">
+                    <app data-string="Electronic invoicing"
+                         string="Electronic invoicing" name="l10n_co_edi_jorels"
                          groups="l10n_co_edi_jorels.l10n_co_edi_jorels_group_manager">
 
                         <h2>Enable/disable electronic invoicing</h2>
@@ -198,16 +198,6 @@
                             </div>
                             <div class="col-12 col-lg-6 o_setting_box">
                                 <div class="o_setting_left_pane">
-                                    <field name="ei_include_pdf_attachment"/>
-                                </div>
-                                <div class="o_setting_right_pane">
-                                    <label string="Include PDF attachment on electronic invoice email"
-                                           for="ei_include_pdf_attachment"/>
-                                    <div class="text-muted">Include PDF attachment on electronic invoice email</div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-lg-6 o_setting_box">
-                                <div class="o_setting_left_pane">
                                     <field name="ei_ignore_edi_email_check"/>
                                 </div>
                                 <div class="o_setting_right_pane">
@@ -219,7 +209,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </app>
                 </xpath>
             </field>
         </record>
